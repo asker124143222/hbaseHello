@@ -101,7 +101,7 @@ public class MyHBase {
     }
 
     private void queryAll(String tableNameString) throws IOException{
-        System.out.println("查询："+tableNameString);
+        System.out.println("导出数据："+tableNameString);
         // 取得数据表对象
         Table table = connection.getTable(TableName.valueOf(tableNameString));
 
@@ -126,6 +126,7 @@ public class MyHBase {
 
                 System.out.println();
 
+                //直接使用出现乱码，要使用Bytes类，并且需要使用offset和length
 //                System.out.println("row value is:" + new String(familyArray, StandardCharsets.UTF_8) + new String(qualifierArray,StandardCharsets.UTF_8)
 //                        + new String(valueArray,StandardCharsets.UTF_8));
             }
@@ -133,7 +134,7 @@ public class MyHBase {
         scanner.close();
         table.close();
 
-        System.out.println("查询结束。。。");
+        System.out.println("导出结束...");
         System.out.println();
     }
 
