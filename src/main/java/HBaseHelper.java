@@ -7,6 +7,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @Author: xu.dm
@@ -19,13 +20,13 @@ public class HBaseHelper implements Closeable {
     private Connection connection = null;
     private Admin admin = null;
 
-    protected HBaseHelper(Configuration configuration) throws IOException{
+    protected HBaseHelper(Configuration configuration) throws IOException {
         this.configuration = configuration;
         this.connection = ConnectionFactory.createConnection(this.configuration);
         admin = this.connection.getAdmin();
     }
 
-    public static HBaseHelper getHBaseHelper(Configuration configuration) throws IOException{
+    public static HBaseHelper getHBaseHelper(Configuration configuration) throws IOException {
         return new HBaseHelper(configuration);
     }
 
@@ -264,5 +265,40 @@ public class HBaseHelper implements Closeable {
                     cell.getValueOffset(), cell.getValueLength()));
         }
     }
+
+
+    //批量插入数据,list里每个map就是一条数据
+    public void bulkInsert(TableName tableName, List<Map<String, Object>> list) throws IOException {
+        List<Put> puts = new ArrayList<Put>();
+        Table table = connection.getTable(tableName);
+        if (list != null && list.size() > 0) {
+            for (Map<String, Object> map : list) {
+                Put put = new Put(Bytes.toBytes(map.get("rowKey").toString()));
+                put.addColumn(Bytes.toBytes(map.get("columnFamily").toString()),
+                        Bytes.toBytes(map.get("columnName").toString()),
+                        Bytes.toBytes(map.get("columnValue").toString()));
+                puts.add(put);
+            }
+        }
+        table.put(puts);
+        table.close();
+    }
+
+    public void bulkInsert2(TableName tableName, List<Put> puts) throws IOException {
+        Table table = connection.getTable(tableName);
+        if (puts != null && puts.size() > 0) {
+            table.put(puts);
+        }
+        table.close();
+    }
+
+    public void insert(TableName tableName, Put put) throws IOException {
+        Table table = connection.getTable(tableName);
+        if (put != null && put.size() > 0) {
+            table.put(put);
+        }
+        table.close();
+    }
+
 
 }

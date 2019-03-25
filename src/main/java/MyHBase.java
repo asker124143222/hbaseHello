@@ -9,7 +9,9 @@ import org.apache.hadoop.hbase.util.Bytes;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @Author: xu.dm
@@ -27,6 +29,8 @@ public class MyHBase {
 
     HBaseHelper helper;
 
+
+    //初始化
     private void setUp() throws IOException{
         conf = HBaseConfiguration.create();
         conf.set("hbase.master","192.168.31.10");
@@ -48,6 +52,7 @@ public class MyHBase {
         // HBase数据库使用的端口
         //conf.set("hbase.zookeeper.property.clientPort", "2181");
 
+        //单机
         conf.set("hbase.rootdir","file:///opt/hbase_data");
         conf.set("hbase.zookeeper.property.dataDir","/opt/hbase_data/zookeeper");
 
@@ -58,22 +63,8 @@ public class MyHBase {
         helper = HBaseHelper.getHBaseHelper(conf);
     }
 
-    //创建表
-    private void createTable() throws IOException{
 
-        String tableNameString = "user";
-
-        TableName tableName = TableName.valueOf(tableNameString);
-
-        if(admin.tableExists(tableName)){
-            System.out.println(tableNameString+"已经存在！");
-        }else {
-
-        }
-
-    }
-
-    //
+    //user表插入测试数据
     private void insertUserData() throws IOException{
         // 取得数据表对象
         Table table = connection.getTable(TableName.valueOf("user"));
@@ -100,6 +91,7 @@ public class MyHBase {
 
     }
 
+    //查询导出所有数据
     private void queryAll(String tableNameString) throws IOException{
         System.out.println("导出数据："+tableNameString);
         // 取得数据表对象
@@ -143,6 +135,7 @@ public class MyHBase {
         connection.close();
     }
 
+    //插入testtable表数据
     private void initTestTable() throws IOException{
         String tableNameString = "testtable";
         if(helper.existsTable(tableNameString)){
@@ -163,6 +156,78 @@ public class MyHBase {
         helper.close();
     }
 
+    private void bulkInsertTestTable() throws IOException{
+        String tableNameString = "testtable";
+        if(!helper.existsTable(tableNameString)){
+            helper.createTable(tableNameString,"info","ex","memo");
+        }
+
+        System.out.println(".........批量插入数据start.........");
+        List<Map<String,Object>> mapList = new ArrayList<>();
+        for(int i=1;i<201;i++){
+            Map<String,Object> map = new HashMap<>();
+            map.put("rowKey","testKey"+i);
+            map.put("columnFamily","info");
+            map.put("columnName","username");
+            map.put("columnValue","guest"+i);
+
+            map.put("rowKey","testKey"+i);
+            map.put("columnFamily","ex");
+            map.put("columnName","addr");
+            map.put("columnValue","北京路"+i+"号");
+
+            map.put("rowKey","testKey"+i);
+            map.put("columnFamily","memo");
+            map.put("columnName","detail");
+            map.put("columnValue","联合国地球村北京路第"+i+"号");
+
+            mapList.add(map);
+        }
+
+        helper.bulkInsert(TableName.valueOf(tableNameString),mapList);
+
+        System.out.println(".........批量插入数据end.........");
+    }
+
+    private void bulkInsertTestTable2() throws IOException{
+        String tableNameString = "testtable";
+        if(!helper.existsTable(tableNameString)){
+            helper.createTable(tableNameString,"info","ex","memo");
+        }
+
+        List<Put> puts = new ArrayList<>();
+        for(int i=0;i<10;i++){
+            String rowKey = "rowKey"+i;
+            String columnFamily = "info";
+            String columnName = "username";
+            String columnValue = "user"+i;
+            Put put = new Put(Bytes.toBytes(rowKey));
+            put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+
+            rowKey = "rowKey"+i;
+            columnFamily = "ex";
+            columnName = "addr";
+            columnValue = "street "+i;
+//            Put put2 = new Put(Bytes.toBytes(rowKey));
+//            put2.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+            put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+
+            rowKey = "rowKey"+i;
+            columnFamily = "memo";
+            columnName = "detail";
+            columnValue = "aazzdd "+i;
+//            Put put3 = new Put(Bytes.toBytes(rowKey));
+//            put3.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+            put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+
+            System.out.println("put size:"+put.size());
+            puts.add(put);
+//            puts.add(put2);
+//            puts.add(put3);
+        }
+        helper.bulkInsert2(TableName.valueOf(tableNameString),puts);
+    }
+
     private void dumpTable(String tableNameString) throws IOException{
         helper.dump(tableNameString);
         helper.close();
@@ -172,7 +237,8 @@ public class MyHBase {
 //        System.out.println("字符编码："+System.getProperty("file.encoding"));
         MyHBase myHBase = new MyHBase();
         myHBase.setUp();
-        myHBase.queryAll("user");
+        myHBase.bulkInsertTestTable2();
+//        myHBase.queryAll("user");
         myHBase.queryAll("testtable");
 //        myHBase.dumpTable("testtable");
         myHBase.close();
