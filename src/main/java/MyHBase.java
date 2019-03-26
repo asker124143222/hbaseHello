@@ -19,16 +19,9 @@ import java.util.Map;
  * @Description:
  */
 public class MyHBase {
-    // 与HBase数据库的连接对象
-    Connection connection;
-
-    // 数据库元数据操作对象
-    Admin admin;
-
     Configuration conf;
 
     HBaseHelper helper;
-
 
     //初始化
     private void setUp() throws IOException{
@@ -56,10 +49,6 @@ public class MyHBase {
         conf.set("hbase.rootdir","file:///opt/hbase_data");
         conf.set("hbase.zookeeper.property.dataDir","/opt/hbase_data/zookeeper");
 
-        connection = ConnectionFactory.createConnection(conf);
-
-        admin = connection.getAdmin();
-
         helper = HBaseHelper.getHBaseHelper(conf);
     }
 
@@ -67,7 +56,8 @@ public class MyHBase {
     //user表插入测试数据
     private void insertUserData() throws IOException{
         // 取得数据表对象
-        Table table = connection.getTable(TableName.valueOf("user"));
+
+        Table table = helper.getConnection().getTable(TableName.valueOf("user"));
 
         // 需要插入数据库的数据集合
 
@@ -95,7 +85,7 @@ public class MyHBase {
     private void queryAll(String tableNameString) throws IOException{
         System.out.println("导出数据："+tableNameString);
         // 取得数据表对象
-        Table table = connection.getTable(TableName.valueOf(tableNameString));
+        Table table = helper.getConnection().getTable(TableName.valueOf(tableNameString));
 
         // 取得表中所有数据
         ResultScanner scanner = table.getScanner(new Scan());
@@ -132,7 +122,7 @@ public class MyHBase {
 
     private void close() throws IOException{
 
-        connection.close();
+        helper.close();
     }
 
     //插入testtable表数据
@@ -184,7 +174,7 @@ public class MyHBase {
             mapList.add(map);
         }
 
-        helper.bulkInsert(TableName.valueOf(tableNameString),mapList);
+        helper.bulkInsert(tableNameString,mapList);
 
         System.out.println(".........批量插入数据end.........");
     }
@@ -198,34 +188,27 @@ public class MyHBase {
         List<Put> puts = new ArrayList<>();
         for(int i=0;i<10;i++){
             String rowKey = "rowKey"+i;
-            String columnFamily = "info";
-            String columnName = "username";
-            String columnValue = "user"+i;
             Put put = new Put(Bytes.toBytes(rowKey));
+
+            String columnFamily = "info";
+            String columnName = "username2";
+            String columnValue = "user"+i;
             put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
 
-            rowKey = "rowKey"+i;
             columnFamily = "ex";
-            columnName = "addr";
+            columnName = "addr2";
             columnValue = "street "+i;
-//            Put put2 = new Put(Bytes.toBytes(rowKey));
-//            put2.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
             put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
 
-            rowKey = "rowKey"+i;
             columnFamily = "memo";
-            columnName = "detail";
+            columnName = "detail2";
             columnValue = "aazzdd "+i;
-//            Put put3 = new Put(Bytes.toBytes(rowKey));
-//            put3.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
             put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
 
             System.out.println("put size:"+put.size());
             puts.add(put);
-//            puts.add(put2);
-//            puts.add(put3);
         }
-        helper.bulkInsert2(TableName.valueOf(tableNameString),puts);
+        helper.bulkInsert2(tableNameString,puts);
     }
 
     private void dumpTable(String tableNameString) throws IOException{
@@ -233,13 +216,28 @@ public class MyHBase {
         helper.close();
     }
 
+    private void deleteByKey() throws IOException{
+        String tableNameString = "testtable";
+        String rowKey = "rowKey0";
+        helper.deleteByKey(tableNameString,rowKey);
+    }
+
+    private void deleteByKeyAndFamily() throws IOException{
+        String tableNameString = "testtable";
+        String rowKey = "rowKey1";
+        String columnFamily="ex";
+        helper.deleteByKeyAndFamily(tableNameString,rowKey,columnFamily);
+    }
+
     public static void main(String[] args) throws IOException{
 //        System.out.println("字符编码："+System.getProperty("file.encoding"));
         MyHBase myHBase = new MyHBase();
         myHBase.setUp();
-        myHBase.bulkInsertTestTable2();
+//        myHBase.deleteByKey();
+        myHBase.deleteByKeyAndFamily();
+//        myHBase.bulkInsertTestTable2();
 //        myHBase.queryAll("user");
-        myHBase.queryAll("testtable");
+//        myHBase.queryAll("testtable");
 //        myHBase.dumpTable("testtable");
         myHBase.close();
 

@@ -183,6 +183,16 @@ public class HBaseHelper implements Closeable {
         tbl.close();
     }
 
+    //插入或者更新
+    public void put(TableName tableName, Put put) throws IOException {
+        Table table = connection.getTable(tableName);
+        if (put != null && put.size() > 0) {
+            table.put(put);
+        }
+        table.close();
+    }
+
+
     public void put(String table, String[] rows, String[] fams, String[] quals,
                     long[] ts, String[] vals) throws IOException {
         put(TableName.valueOf(table), rows, fams, quals, ts, vals);
@@ -268,7 +278,8 @@ public class HBaseHelper implements Closeable {
 
 
     //批量插入数据,list里每个map就是一条数据
-    public void bulkInsert(TableName tableName, List<Map<String, Object>> list) throws IOException {
+    public void bulkInsert(String tableNameString, List<Map<String, Object>> list) throws IOException {
+        TableName tableName = TableName.valueOf(tableNameString);
         List<Put> puts = new ArrayList<Put>();
         Table table = connection.getTable(tableName);
         if (list != null && list.size() > 0) {
@@ -284,7 +295,9 @@ public class HBaseHelper implements Closeable {
         table.close();
     }
 
-    public void bulkInsert2(TableName tableName, List<Put> puts) throws IOException {
+    //批量插入
+    public void bulkInsert2(String tableNameString, List<Put> puts) throws IOException {
+        TableName tableName = TableName.valueOf(tableNameString);
         Table table = connection.getTable(tableName);
         if (puts != null && puts.size() > 0) {
             table.put(puts);
@@ -292,13 +305,28 @@ public class HBaseHelper implements Closeable {
         table.close();
     }
 
-    public void insert(TableName tableName, Put put) throws IOException {
+    //根据rowKey删除所有行数据
+    public void deleteByKey(String tableNameString,String rowKey) throws IOException{
+        TableName tableName = TableName.valueOf(tableNameString);
         Table table = connection.getTable(tableName);
-        if (put != null && put.size() > 0) {
-            table.put(put);
-        }
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+
+        table.delete(delete);
         table.close();
     }
+
+    //根据rowKey和列族删除所有行数据
+    public void deleteByKeyAndFamily(String tableNameString,String rowKey,String columnFamily) throws IOException{
+        TableName tableName = TableName.valueOf(tableNameString);
+        Table table = connection.getTable(tableName);
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+        delete.addFamily(Bytes.toBytes(columnFamily));
+
+        table.delete(delete);
+        table.close();
+    }
+
+
 
 
 }
