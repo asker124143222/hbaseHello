@@ -104,7 +104,7 @@ public class MyHBase {
                 String s2 = "row qualifierArray is:" + Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
                 String s3 = "row value is:" + Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
 
-                System.out.println(s1+", "+s2+", "+s3);
+                System.out.println(s1+",  "+s2+",  "+s3+"\t"+cell.getTimestamp());
 
                 System.out.println();
 
@@ -229,15 +229,26 @@ public class MyHBase {
         helper.deleteByKeyAndFamily(tableNameString,rowKey,columnFamily);
     }
 
+    private void delleteByKeyAndFC() throws IOException{
+        String tableNameString = "testtable";
+        String rowKey = "rowKey3";
+        String columnFamily="ex";
+        List<String> list = new ArrayList<>();
+//        list.add("addr");
+        list.add("addr2");
+        helper.deleteByKeyAndFC(tableNameString,rowKey,columnFamily,list);
+    }
+
     public static void main(String[] args) throws IOException{
 //        System.out.println("字符编码："+System.getProperty("file.encoding"));
         MyHBase myHBase = new MyHBase();
         myHBase.setUp();
 //        myHBase.deleteByKey();
-        myHBase.deleteByKeyAndFamily();
+//        myHBase.deleteByKeyAndFamily();
+//        myHBase.delleteByKeyAndFC();
 //        myHBase.bulkInsertTestTable2();
 //        myHBase.queryAll("user");
-//        myHBase.queryAll("testtable");
+        myHBase.queryAll("testtable");
 //        myHBase.dumpTable("testtable");
         myHBase.close();
 

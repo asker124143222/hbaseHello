@@ -6,13 +6,14 @@ import org.apache.hadoop.hbase.util.Bytes;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * @Author: xu.dm
  * @Date: 2019/3/24 18:23
- * @Description:
+ * @Description: Hbase辅助操作
  */
 public class HBaseHelper implements Closeable {
 
@@ -326,7 +327,32 @@ public class HBaseHelper implements Closeable {
         table.close();
     }
 
+    //根据rowKey、列族删除多个列的数据
+    public void deleteByKeyAndFC(String tableNameString,String rowKey,
+                                 String columnFamily,List<String> columnNames) throws IOException{
+        TableName tableName = TableName.valueOf(tableNameString);
+        Table table = connection.getTable(tableName);
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+        for(String columnName:columnNames){
+            delete.addColumns(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName));
+        }
+        table.delete(delete);
+        table.close();
+    }
 
+
+    //根据rowkey，获取所有列族和列数据
+    public List<Cell> getRowByKey(String tableNameString,String rowKey) throws IOException{
+        TableName tableName = TableName.valueOf(tableNameString);
+        Table table = connection.getTable(tableName);
+
+        Get get = new Get(Bytes.toBytes(rowKey));
+        Result result = table.get(get);
+//        Cell[] cells = result.rawCells();
+        List<Cell> list = result.listCells();
+        table.close();
+        return list;
+    }
 
 
 }
