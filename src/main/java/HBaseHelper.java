@@ -1,6 +1,12 @@
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.*;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CompareOperator;
+import org.apache.hadoop.hbase.NamespaceDescriptor;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.RegexStringComparator;
+import org.apache.hadoop.hbase.filter.RowFilter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Closeable;
@@ -21,7 +27,7 @@ public class HBaseHelper implements Closeable {
     private Connection connection = null;
     private Admin admin = null;
 
-    protected HBaseHelper(Configuration configuration) throws IOException {
+    private HBaseHelper(Configuration configuration) throws IOException {
         this.configuration = configuration;
         this.connection = ConnectionFactory.createConnection(this.configuration);
         admin = this.connection.getAdmin();
@@ -33,6 +39,7 @@ public class HBaseHelper implements Closeable {
 
     @Override
     public void close() throws IOException {
+        admin.close();
         connection.close();
     }
 
@@ -113,7 +120,7 @@ public class HBaseHelper implements Closeable {
         //表描述器构造器
         TableDescriptorBuilder tableDescriptorBuilder = TableDescriptorBuilder.newBuilder(table);
 
-        //列族描述起构造器
+        //列族描述构造器
         ColumnFamilyDescriptorBuilder cfDescBuilder;
 
         //列描述器
@@ -160,6 +167,7 @@ public class HBaseHelper implements Closeable {
         put(TableName.valueOf(table), row, fam, qual, val);
     }
 
+    //插入或更新单行
     public void put(TableName table, String row, String fam, String qual,
                     String val) throws IOException {
         Table tbl = connection.getTable(table);
@@ -174,6 +182,7 @@ public class HBaseHelper implements Closeable {
         put(TableName.valueOf(table), row, fam, qual, ts, val);
     }
 
+    //带时间戳插入或更新单行
     public void put(TableName table, String row, String fam, String qual, long ts,
                     String val) throws IOException {
         Table tbl = connection.getTable(table);
@@ -184,8 +193,9 @@ public class HBaseHelper implements Closeable {
         tbl.close();
     }
 
-    //插入或者更新
-    public void put(TableName tableName, Put put) throws IOException {
+    //插入或者更新一个rowKey数据，一个Put里有一个rowKey，可能有多个列族和列名
+    public void put(String tableNameString, Put put) throws IOException {
+        TableName tableName = TableName.valueOf(tableNameString);
         Table table = connection.getTable(tableName);
         if (put != null && put.size() > 0) {
             table.put(put);
@@ -193,66 +203,6 @@ public class HBaseHelper implements Closeable {
         table.close();
     }
 
-
-    public void put(String table, String[] rows, String[] fams, String[] quals,
-                    long[] ts, String[] vals) throws IOException {
-        put(TableName.valueOf(table), rows, fams, quals, ts, vals);
-    }
-
-    public void put(TableName table, String[] rows, String[] fams, String[] quals,
-                    long[] ts, String[] vals) throws IOException {
-        Table tbl = connection.getTable(table);
-        for (String row : rows) {
-            Put put = new Put(Bytes.toBytes(row));
-            for (String fam : fams) {
-                int v = 0;
-                for (String qual : quals) {
-                    String val = vals[v < vals.length ? v : vals.length - 1];
-                    long t = ts[v < ts.length ? v : ts.length - 1];
-                    System.out.println("Adding: " + row + " " + fam + " " + qual +
-                            " " + t + " " + val);
-                    put.addColumn(Bytes.toBytes(fam), Bytes.toBytes(qual), t,
-                            Bytes.toBytes(val));
-                    v++;
-                }
-            }
-            tbl.put(put);
-        }
-        tbl.close();
-    }
-
-
-    public void dump(String table, String[] rows, String[] fams, String[] quals)
-            throws IOException {
-        dump(TableName.valueOf(table), rows, fams, quals);
-    }
-
-    public void dump(TableName table, String[] rows, String[] fams, String[] quals)
-            throws IOException {
-        Table tbl = connection.getTable(table);
-        List<Get> gets = new ArrayList<Get>();
-        for (String row : rows) {
-            Get get = new Get(Bytes.toBytes(row));
-//            get.setMaxVersions();
-            if (fams != null) {
-                for (String fam : fams) {
-                    for (String qual : quals) {
-                        get.addColumn(Bytes.toBytes(fam), Bytes.toBytes(qual));
-                    }
-                }
-            }
-            gets.add(get);
-        }
-        Result[] results = tbl.get(gets);
-        for (Result result : results) {
-            for (Cell cell : result.rawCells()) {
-                System.out.println("Cell: " + cell +
-                        ", Value: " + Bytes.toString(cell.getValueArray(),
-                        cell.getValueOffset(), cell.getValueLength()));
-            }
-        }
-        tbl.close();
-    }
 
     public void dump(String table) throws IOException {
         dump(TableName.valueOf(table));
@@ -269,6 +219,7 @@ public class HBaseHelper implements Closeable {
         }
     }
 
+    //从Cell取Array要加上位移和长度，不然数据不正确
     public void dumpResult(Result result) {
         for (Cell cell : result.rawCells()) {
             System.out.println("Cell: " + cell +
@@ -354,5 +305,41 @@ public class HBaseHelper implements Closeable {
         return list;
     }
 
+    //根据rowKey过滤数据，rowKey可以使用正则表达式
+    //返回rowKey和Cells的键值对
+    public Map<String,List<Cell>> filterByRowKeyRegex(String tableNameString,String rowKey,CompareOperator operator) throws IOException{
+        TableName tableName = TableName.valueOf(tableNameString);
+        Table table = connection.getTable(tableName);
+        Scan scan = new Scan();
+        RowFilter filter = new RowFilter(operator,new RegexStringComparator(rowKey));
+        scan.setFilter(filter);
+
+        ResultScanner scanner = table.getScanner(scan);
+        Map<String,List<Cell>> map = new HashMap<>();
+        for(Result result:scanner){
+            map.put(Bytes.toString(result.getRow()),result.listCells());
+        }
+        table.close();
+        return map;
+    }
+
+    //根据列族，列名，列值（支持正则）查找数据
+    //有点问题
+    public Map<String,List<Cell>> filterByValueRegex(String tableNameString,String family,String colName,
+                                                String value,CompareOperator operator) throws IOException{
+        TableName tableName = TableName.valueOf(tableNameString);
+        Table table = connection.getTable(tableName);
+        Scan scan = new Scan();
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes(family),
+                Bytes.toBytes(colName),operator,new RegexStringComparator(value));
+        scan.setFilter(filter);
+
+        ResultScanner scanner = table.getScanner(scan);
+        Map<String,List<Cell>> map = new HashMap<>();
+        for(Result result:scanner){
+            map.put(Bytes.toString(result.getRow()),result.listCells());
+        }
+        return map;
+    }
 
 }

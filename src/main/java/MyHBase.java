@@ -1,6 +1,8 @@
+import com.sun.tools.corba.se.idl.toJavaPortable.Helper;
 import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
@@ -179,8 +181,36 @@ public class MyHBase {
         System.out.println(".........批量插入数据end.........");
     }
 
-    private void bulkInsertTestTable2() throws IOException{
-        String tableNameString = "testtable";
+    private void insertByRowKey(String table,String rowKey) throws IOException{
+        Put put = new Put(Bytes.toBytes(rowKey));
+
+        String columnFamily ;
+        String columnName ;
+        String columnValue ;
+        for(int i=0;i<10;i++){
+            columnFamily = "info";
+            columnName = "username"+i;
+            columnValue = "user111";
+            put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+
+            columnFamily = "ex";
+            columnName = "addr"+i;
+            columnValue = "street 111";
+            put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+
+            columnFamily = "memo";
+            columnName = "detail"+i;
+            columnValue = "sssss zzz 111222 ";
+            put.addColumn(Bytes.toBytes(columnFamily),Bytes.toBytes(columnName),Bytes.toBytes(columnValue));
+        }
+        System.out.println("----> put size:"+put.size());
+
+        helper.put(table,put);
+
+    }
+
+    private void bulkInsertTestTable2(String tableNameString) throws IOException{
+//        String tableNameString = "testtable";
         if(!helper.existsTable(tableNameString)){
             helper.createTable(tableNameString,"info","ex","memo");
         }
@@ -229,7 +259,7 @@ public class MyHBase {
         helper.deleteByKeyAndFamily(tableNameString,rowKey,columnFamily);
     }
 
-    private void delleteByKeyAndFC() throws IOException{
+    private void deleteByKeyAndFC() throws IOException{
         String tableNameString = "testtable";
         String rowKey = "rowKey3";
         String columnFamily="ex";
@@ -239,17 +269,75 @@ public class MyHBase {
         helper.deleteByKeyAndFC(tableNameString,rowKey,columnFamily,list);
     }
 
+    private void createTableBySplitKey() throws IOException{
+        String tableNameString = "testtable2";
+        byte[][] splitKeys = {
+                Bytes.toBytes("10"),
+                Bytes.toBytes("60"),
+                Bytes.toBytes("120"),
+        };
+        helper.createTable(tableNameString,splitKeys,"info","ex","memo");
+    }
+
+    private void getDataByRowKey(String table,String rowKey) throws IOException{
+        List<Cell> cells = helper.getRowByKey(table,rowKey);
+        for(Cell cell:cells){
+            String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
+            String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
+            String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
+            System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
+                    rowKey,columnFamily,columnName,value);
+        }
+    }
+
+    private void getDataByRowKeyFilter(String table,String rowKey) throws IOException{
+        Map<String,List<Cell>> map = helper.filterByRowKeyRegex(table,rowKey, CompareOperator.EQUAL);
+        for(Map.Entry<String,List<Cell>> entry: map.entrySet()){
+            String key = entry.getKey();
+            List<Cell> list = entry.getValue();
+            for(Cell cell:list){
+                String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
+                String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
+                String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
+                System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
+                        key,columnFamily,columnName,value);
+            }
+        }
+    }
+
+    private void getDataByValueFilter(String table,String family,String colName,String colValue) throws IOException{
+        Map<String,List<Cell>> map = helper.filterByValueRegex(table,family,colName,colValue,CompareOperator.EQUAL);
+        for(Map.Entry<String,List<Cell>> entry: map.entrySet()){
+            String key = entry.getKey();
+            List<Cell> list = entry.getValue();
+            for(Cell cell:list){
+                String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
+                String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
+                String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
+                System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
+                        key,columnFamily,columnName,value);
+            }
+        }
+    }
+
+
     public static void main(String[] args) throws IOException{
 //        System.out.println("字符编码："+System.getProperty("file.encoding"));
         MyHBase myHBase = new MyHBase();
         myHBase.setUp();
+//        myHBase.createTableBySplitKey();
 //        myHBase.deleteByKey();
 //        myHBase.deleteByKeyAndFamily();
-//        myHBase.delleteByKeyAndFC();
-//        myHBase.bulkInsertTestTable2();
+//        myHBase.deleteByKeyAndFC();
+//        myHBase.bulkInsertTestTable2("testtable2");
 //        myHBase.queryAll("user");
-        myHBase.queryAll("testtable");
-//        myHBase.dumpTable("testtable");
+//        myHBase.queryAll("testtable");
+//        myHBase.dumpTable("testtable2");
+//        myHBase.insertByRowKey("testtable2","rowKey0");
+//        myHBase.getDataByRowKey("testtable2","rowKey0");
+//        myHBase.getDataByRowKeyFilter("testtable2","Key1$");
+//        myHBase.getDataByRowKeyFilter("user","^power");
+        myHBase.getDataByValueFilter("testtable","ex","addr","5$");
         myHBase.close();
 
 
