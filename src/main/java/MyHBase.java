@@ -1,5 +1,3 @@
-import com.sun.tools.corba.se.idl.toJavaPortable.Helper;
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CompareOperator;
@@ -9,7 +7,6 @@ import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -281,13 +278,7 @@ public class MyHBase {
 
     private void getDataByRowKey(String table,String rowKey) throws IOException{
         List<Cell> cells = helper.getRowByKey(table,rowKey);
-        for(Cell cell:cells){
-            String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
-            String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
-            String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
-            System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
-                    rowKey,columnFamily,columnName,value);
-        }
+        dumpCells(rowKey,cells);
     }
 
     private void getDataByRowKeyFilter(String table,String rowKey) throws IOException{
@@ -295,13 +286,7 @@ public class MyHBase {
         for(Map.Entry<String,List<Cell>> entry: map.entrySet()){
             String key = entry.getKey();
             List<Cell> list = entry.getValue();
-            for(Cell cell:list){
-                String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
-                String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
-                String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
-                System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
-                        key,columnFamily,columnName,value);
-            }
+            dumpCells(key,list);
         }
     }
 
@@ -310,16 +295,38 @@ public class MyHBase {
         for(Map.Entry<String,List<Cell>> entry: map.entrySet()){
             String key = entry.getKey();
             List<Cell> list = entry.getValue();
-            for(Cell cell:list){
-                String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
-                String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
-                String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
-                System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
-                        key,columnFamily,columnName,value);
-            }
+            dumpCells(key,list);
         }
     }
 
+    private void getDataByColumnPrefix(String table,String prefix) throws IOException{
+        Map<String,List<Cell>> map = helper.filterByColumnPrefix(table,prefix);
+        for(Map.Entry<String,List<Cell>> entry:map.entrySet()){
+            String key = entry.getKey();
+            List<Cell> list = entry.getValue();
+            dumpCells(key,list);
+        }
+    }
+
+    private void dumpCells(String key,List<Cell> list){
+        for(Cell cell:list){
+            String columnFamily = Bytes.toString(cell.getFamilyArray(),cell.getFamilyOffset(),cell.getFamilyLength());
+            String columnName = Bytes.toString(cell.getQualifierArray(),cell.getQualifierOffset(),cell.getQualifierLength());
+            String value = Bytes.toString(cell.getValueArray(),cell.getValueOffset(),cell.getValueLength());
+            System.out.printf("[key:%s]\t[family:%s] [column:%s] [value:%s]\n",
+                    key,columnFamily,columnName,value);
+        }
+    }
+
+
+    private void getDataByComplexCol(String table,String colPrefix,String minCol,String maxCol) throws IOException{
+        Map<String,List<Cell>> map = helper.filterByPrefixAndRange(table,colPrefix,minCol,maxCol);
+        for(Map.Entry<String,List<Cell>> entry:map.entrySet()){
+            String key = entry.getKey();
+            List<Cell> list = entry.getValue();
+            dumpCells(key,list);
+        }
+    }
 
     public static void main(String[] args) throws IOException{
 //        System.out.println("字符编码："+System.getProperty("file.encoding"));
@@ -337,7 +344,10 @@ public class MyHBase {
 //        myHBase.getDataByRowKey("testtable2","rowKey0");
 //        myHBase.getDataByRowKeyFilter("testtable2","Key1$");
 //        myHBase.getDataByRowKeyFilter("user","^power");
-        myHBase.getDataByValueFilter("testtable","ex","addr","5$");
+//        myHBase.getDataByValueFilter("user","info","username","战士1");
+
+//        myHBase.getDataByColumnPrefix("user","ad");
+        myHBase.getDataByComplexCol("testtable2","username0","username0","username9");
         myHBase.close();
 
 
